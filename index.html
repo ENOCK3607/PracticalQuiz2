@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Practical - Final Corrected Alignment</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB); 
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    // Camera positioned to look directly through the gap
+    camera.position.set(0, 10, 28); 
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+    sun.position.set(5, 20, 10);
+    sun.castShadow = true;
+    scene.add(sun);
+
+    const mintGreen = 0x98FFB3;
+    const woodBrown = 0x4E342E;
+
+    // 1. Grass
+    const grass = new THREE.Mesh(
+        new THREE.PlaneGeometry(200, 200),
+        new THREE.MeshStandardMaterial({ color: 0x008000 })
+    );
+    grass.rotation.x = -Math.PI / 2;
+    grass.receiveShadow = true;
+    scene.add(grass);
+
+    // 2. THE 270 DEGREE WALL (Positioned so the gap is at Z-front)
+    const wallGeo = new THREE.CylinderGeometry(20, 20, 12, 64, 1, true, 0, Math.PI * 1.5);
+    const wallMat = new THREE.MeshStandardMaterial({ color: mintGreen, side: THREE.DoubleSide });
+    const wall = new THREE.Mesh(wallGeo, wallMat);
+    // Rotating so the "open" part is exactly at the front center
+    wall.rotation.y = Math.PI * 0.75; 
+    scene.add(wall);
+
+    // 3. STEPPED CARPET (Exactly in the gap / In front of the hat)
+    function createSteps() {
+        const group = new THREE.Group();
+        const stepGeo = new THREE.BoxGeometry(4, 0.05, 1.2);
+        const stepMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC });
+        
+        // Starts at the gazebo edge (z=5) and moves out to the camera
+        for(let i = 0; i < 10; i++) {
+            const step = new THREE.Mesh(stepGeo, stepMat);
+            step.position.set(0, 0.03, 7 + (i * 1.6)); 
+            step.receiveShadow = true;
+            group.add(step);
+        }
+        return group;
+    }
+    scene.add(createSteps());
+
+    // 4. Gazebo Structure
+    const gazebo = new THREE.Group();
+    const platform = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.2, 0.6, 32), new THREE.MeshStandardMaterial({color: 0x333333}));
+    gazebo.add(platform);
+
+    const rail = new THREE.Mesh(
+        new THREE.CylinderGeometry(5, 5, 2.8, 32, 1, true, 0, Math.PI * 1.5),
+        new THREE.MeshStandardMaterial({ color: mintGreen, side: THREE.DoubleSide })
+    );
+    rail.position.y = 1.7;
+    rail.rotation.y = Math.PI * 0.75;
+    gazebo.add(rail);
+
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(5.8, 3.5, 32), new THREE.MeshStandardMaterial({ color: mintGreen }));
+    roof.position.y = 6;
+    gazebo.add(roof);
+    scene.add(gazebo);
+
+    // 5. Table & Chairs
+    const tableTop = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.15, 2), new THREE.MeshStandardMaterial({color: woodBrown}));
+    tableTop.position.y = 2.6;
+    scene.add(tableTop);
+
+    const tableLeg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.6, 0.3), new THREE.MeshStandardMaterial({color: woodBrown}));
+    tableLeg.position.y = 1.3;
+    scene.add(tableLeg);
+
+    function createChair(zPos, rot) {
+        const chair = new THREE.Group();
+        const mat = new THREE.MeshStandardMaterial({ color: woodBrown });
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 1.2), mat);
+        seat.position.y = 1.4;
+        chair.add(seat);
+        const back = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.5, 0.1), mat);
+        back.position.set(0, 2.15, -0.55);
+        chair.add(back);
+        const legGeo = new THREE.BoxGeometry(0.1, 1.4, 0.1);
+        [[-0.5, 0.7, 0.5], [0.5, 0.7, 0.5], [-0.5, 0.7, -0.5], [0.5, 0.7, -0.5]].forEach(p => {
+            const leg = new THREE.Mesh(legGeo, mat); leg.position.set(...p); chair.add(leg);
+        });
+        chair.position.z = zPos;
+        chair.rotation.y = rot;
+        return chair;
+    }
+    scene.add(createChair(2.5, Math.PI)); 
+    scene.add(createChair(-2.5, 0));
+
+    // 6. Props (Milo, Milk, Cups, Summer Hat)
+    const milo = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.5), new THREE.MeshStandardMaterial({color: 0x006B3C}));
+    milo.position.set(-0.8, 2.9, 0);
+    scene.add(milo);
+
+    const milk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.5), new THREE.MeshStandardMaterial({color: 0xFFFFFF}));
+    milk.position.set(0.8, 2.9, 0);
+    scene.add(milk);
+
+    const hat = new THREE.Group();
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, 0.03, 32), new THREE.MeshStandardMaterial({color: 0xE3C9A1}));
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.3, 32), new THREE.MeshStandardMaterial({color: 0xE3C9A1}));
+    crown.position.y = 0.15;
+    hat.add(brim, crown);
+    hat.position.set(0, 2.68, 0); 
+    scene.add(hat);
+
+    const cup1 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.2), new THREE.MeshStandardMaterial({color: 0x0000FF}));
+    cup1.position.set(-0.3, 2.7, 0.5); scene.add(cup1);
+    const cup2 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.2), new THREE.MeshStandardMaterial({color: 0xDD2222}));
+    cup2.position.set(0.3, 2.7, -0.5); scene.add(cup2);
+
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
+</body>
+</html>
